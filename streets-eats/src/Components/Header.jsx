@@ -1,7 +1,17 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { auth, db } from "../../src/Services/firebase";
 import { Link } from "react-router-dom";
 import { Fragment, useState } from "react";
 import { Dialog, Disclosure, Popover, Transition } from "@headlessui/react";
+import {
+  collection,
+  addDoc,
+  doc,
+  getDocs,
+  getDoc,
+  query,
+  where,
+} from "firebase/firestore";
 import {
   ArrowPathIcon,
   Bars3Icon,
@@ -62,6 +72,35 @@ function classNames(...classes) {
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [userProfileImage, setUserProfileImage] = useState("");
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUser(user);
+      if (user) {
+        // Fetch user profile image if user is logged in
+        fetchUserProfileImage(user.uid);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  const fetchUserProfileImage = async (userId) => {
+    try {
+      const userDocRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userDocRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        // Assuming the user's profile image URL is stored in 'profileImageUrl' field
+        const profileImageUrl = userData.profileImageUrl || "";
+        setUserProfileImage(profileImageUrl);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile image: ", error);
+    }
+  };
+
   return (
     <header className="bg-white sticky top-0 z-50">
       <nav
@@ -160,23 +199,54 @@ export default function Header() {
           >
             About
           </Link>
-          <a href="#features" className="text-sm font-semibold leading-6 text-gray-900">
-            Features
-          </a>
-          <a href="#testimonal" className="text-sm font-semibold leading-6 text-gray-900">
-            Testimonals
-          </a>
-          <a href="#" className="text-sm font-semibold leading-6 text-gray-900">
-            Blog
-          </a>
-        </Popover.Group>
-        <div className="hidden lg:flex lg:flex-1 lg:justify-end">
-          <Link
-            to="/signin"
+          <a
+            href="#features"
             className="text-sm font-semibold leading-6 text-gray-900"
           >
-            Log in <span aria-hidden="true">&rarr;</span>
+            Features
+          </a>
+          <a
+            href="#testimonal"
+            className="text-sm font-semibold leading-6 text-gray-900"
+          >
+            Testimonals
+          </a>
+          <Link
+            to="/previewBlog"
+            className="text-sm font-semibold leading-6 text-gray-900"
+          >
+            Blog
           </Link>
+          {user && ( // Render the Dashboard link only if the user is logged in
+            <Link
+              to="/dashboard?tab=analytics"
+              className="text-sm font-semibold leading-6 text-gray-900"
+            >
+              Dashboard
+            </Link>
+          )}
+        </Popover.Group>
+
+        <div className="hidden lg:flex lg:flex-1 lg:justify-end">
+          {user ? ( // If user is logged in, render profile image
+            <Link
+            to="/dashboard?tab=profile"
+            >
+              <img
+                src={userProfileImage}
+                alt="Profile"
+                className="h-8 w-8 rounded-full"
+              />
+            </Link>
+          ) : (
+            // If user is not logged in, render login link
+            <Link
+              to="/signin"
+              className="text-sm font-semibold leading-6 text-gray-900"
+            >
+              Log in <span aria-hidden="true">&rarr;</span>
+            </Link>
+          )}
         </div>
       </nav>
       <Dialog
@@ -266,3 +336,5 @@ export default function Header() {
     </header>
   );
 }
+
+
